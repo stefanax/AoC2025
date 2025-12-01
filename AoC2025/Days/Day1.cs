@@ -23,21 +23,18 @@ public class Day1
             var direction = instruction[0];
             var steps = int.Parse(instruction[1..]);
 
-            for (var i = 0; i < steps; i++)
+            if (direction == 'L')
             {
-                if (direction == 'L')
-                {
-                    currentPosition = (currentPosition - 1 + dialSize) % dialSize;
-                }
-                else if (direction == 'R')
-                {
-                    currentPosition = (currentPosition + 1) % dialSize;
-                }
+                currentPosition = (currentPosition - steps % dialSize + dialSize) % dialSize;
+            }
+            else if (direction == 'R')
+            {
+                currentPosition = (currentPosition + steps) % dialSize;
+            }
 
-                if (currentPosition == 0)
-                {
-                    zeroHits++;
-                }
+            if (currentPosition == 0)
+            {
+                zeroHits++;
             }
         }
 
