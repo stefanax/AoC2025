@@ -64,9 +64,78 @@ public class Day2
     public void Step2()
     {
         var input = _inputFiles.ReadInputFileForDay(2, false);
-        var inputList = _inputFiles.SplitString(input);
+        var rangeStrings = input
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        // TODO: Implement Day 2 Step 2 solution
-        Console.WriteLine($"Step two result: {0}");
+        long matchingSum = 0;
+
+        foreach (var range in rangeStrings)
+        {
+            var rangeParts = range.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (rangeParts.Length != 2
+                || !long.TryParse(rangeParts[0], out var start)
+                || !long.TryParse(rangeParts[1], out var end))
+            {
+                continue;
+            }
+
+            if (start > end)
+            {
+                (start, end) = (end, start);
+            }
+
+            for (var value = start; value <= end; value++)
+            {
+                if (HasRepeatingPattern(value))
+                {
+                    matchingSum += value;
+                }
+            }
+        }
+
+        Console.WriteLine($"Step two result: {matchingSum}");
+    }
+
+    private static bool HasRepeatingPattern(long value)
+    {
+        if (value < 0)
+        {
+            return false;
+        }
+
+        var valueString = value.ToString();
+
+        if (valueString.Length < 2)
+        {
+            return false;
+        }
+
+        for (var length = 1; length <= valueString.Length / 2; length++)
+        {
+            if (valueString.Length % length != 0)
+            {
+                continue;
+            }
+
+            var pattern = valueString[..length];
+            var matchesPattern = true;
+
+            for (var offset = length; offset < valueString.Length; offset += length)
+            {
+                if (valueString.Substring(offset, length) != pattern)
+                {
+                    matchesPattern = false;
+                    break;
+                }
+            }
+
+            if (matchesPattern)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
