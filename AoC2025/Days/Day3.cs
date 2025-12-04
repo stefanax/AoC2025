@@ -18,7 +18,7 @@ public class Day3
                 continue;
             }
 
-            var largestPair = FindLargestTwoDigitValue(value.Trim());
+            var largestPair = FindLargestNumber(value.Trim(), 2);
             sumOfLargestPairs += largestPair;
         }
 
@@ -28,39 +28,66 @@ public class Day3
     public void Step2()
     {
         var input = _inputFiles.ReadInputFileForDay(3, false);
-        Console.WriteLine("Step two not implemented yet.");
-    }
+        var inputList = _inputFiles.SplitString(input);
 
-    private static int FindLargestTwoDigitValue(string value)
-    {
-        var largest = 0;
+        long sumOfLargestTwelveDigitNumbers = 0;
 
-        for (var i = 0; i < value.Length - 1; i++)
+        foreach (var value in inputList)
         {
-            if (!char.IsDigit(value[i]))
+            if (string.IsNullOrWhiteSpace(value))
             {
                 continue;
             }
 
-            var tens = value[i] - '0';
+            var largestTwelveDigitNumber = FindLargestNumber(value.Trim(), 12);
+            sumOfLargestTwelveDigitNumbers += largestTwelveDigitNumber;
+        }
 
-            for (var j = i + 1; j < value.Length; j++)
+        Console.WriteLine($"Step two result: {sumOfLargestTwelveDigitNumbers}");
+    }
+
+    private static long FindLargestNumber(string value, int length)
+    {
+        var digits = new List<int>();
+
+        foreach (var ch in value)
+        {
+            if (char.IsDigit(ch))
             {
-                if (!char.IsDigit(value[j]))
-                {
-                    continue;
-                }
-
-                var units = value[j] - '0';
-                var combined = tens * 10 + units;
-
-                if (combined > largest)
-                {
-                    largest = combined;
-                }
+                digits.Add(ch - '0');
             }
         }
 
-        return largest;
+        if (digits.Count < length)
+        {
+            return 0;
+        }
+
+        var stack = new List<int>();
+
+        for (var i = 0; i < digits.Count; i++)
+        {
+            var digit = digits[i];
+            var remainingDigits = digits.Count - i - 1;
+
+            while (stack.Count > 0 && stack[^1] < digit && stack.Count - 1 + remainingDigits >= length)
+            {
+                stack.RemoveAt(stack.Count - 1);
+            }
+
+            if (stack.Count < length)
+            {
+                stack.Add(digit);
+            }
+        }
+
+        long result = 0;
+
+        foreach (var digit in stack)
+        {
+            result = result * 10 + digit;
+        }
+
+        return result;
     }
 }
