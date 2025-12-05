@@ -70,7 +70,7 @@ public class Day3
             var digit = digits[i];
             var remainingDigits = digits.Count - i - 1;
 
-            while (stack.Count > 0 && stack[^1] < digit && stack.Count - 1 + remainingDigits >= length)
+            while (stack.Count > 0 && stack[^1] < digit && stack.Count + remainingDigits >= length)
             {
                 stack.RemoveAt(stack.Count - 1);
             }
