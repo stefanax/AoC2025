@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Numerics;
+using System.Text;
 
 namespace AoC2024;
 
@@ -61,70 +62,97 @@ public class Day6
     public void Step2()
     {
         var input = _inputFiles.ReadInputFileForDay(6, false);
-        var lines = _inputFiles.SplitString(input)
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .ToList();
+        var lines = _inputFiles.SplitString(input).ToList();
 
-        if (lines.Count < 2)
+        if (lines.Count == 0)
         {
-            throw new InvalidOperationException("Input must include at least one row of values and an operator row.");
+            throw new InvalidOperationException("Input must include at least one row.");
         }
 
-        var valueRowsRaw = lines[..^1].ToList();
-        var columnCount = valueRowsRaw.Max(line => line.Length);
-        var operatorRow = lines[^1];
-        var valueRows = valueRowsRaw
+        var columnCount = lines.Max(line => line.Length);
+        var paddedLines = lines
             .Select(line => line.PadRight(columnCount, ' '))
             .ToList();
 
         BigInteger total = 0;
+        var currentNumbers = new List<BigInteger>();
+        char? currentOperator = null;
 
-        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+        void FinalizeGroup()
         {
-            if (columnIndex >= operatorRow.Length)
+            if (currentNumbers.Count == 0)
             {
-                throw new InvalidOperationException(
-                    $"Missing operator for column {columnIndex} (operator row too short).");
+                return;
             }
 
-            var operationSymbol = operatorRow[columnIndex];
-            var isAddition = operationSymbol == '+';
-            var isMultiplication = operationSymbol == '*';
-
-            if (!isAddition && !isMultiplication)
+            if (currentOperator is null)
             {
-                throw new InvalidOperationException($"Unexpected operator '{operationSymbol}' in column {columnIndex}.");
+                throw new InvalidOperationException("Encountered a number group without an operator.");
             }
 
-            var subColumnValues = new List<BigInteger>();
-            var isBuildingNumber = false;
+            var result = currentOperator == '+'
+                ? currentNumbers.Aggregate(BigInteger.Zero, (running, value) => running + value)
+                : currentNumbers.Aggregate(BigInteger.One, (running, value) => running * value);
 
-            foreach (var valueRow in valueRows)
-            {
-                var character = valueRow[columnIndex];
-
-                if (!char.IsDigit(character))
-                {
-                    isBuildingNumber = false;
-                    continue;
-                }
-
-                if (!isBuildingNumber)
-                {
-                    subColumnValues.Add(new BigInteger(character - '0'));
-                    isBuildingNumber = true;
-                    continue;
-                }
-
-                subColumnValues[^1] = subColumnValues[^1] * 10 + (character - '0');
-            }
-
-            var columnResult = isAddition
-                ? subColumnValues.Aggregate(BigInteger.Zero, (current, value) => current + value)
-                : subColumnValues.Aggregate(BigInteger.One, (current, value) => current * value);
-
-            total += columnResult;
+            total += result;
+            currentNumbers.Clear();
+            currentOperator = null;
         }
+
+        for (var columnIndex = columnCount - 1; columnIndex >= 0; columnIndex--)
+        {
+            var columnBuilder = new StringBuilder();
+            var isBlankColumn = true;
+
+            foreach (var line in paddedLines)
+            {
+                var character = line[columnIndex];
+                columnBuilder.Append(character);
+
+                if (character != ' ')
+                {
+                    isBlankColumn = false;
+                }
+            }
+
+            if (isBlankColumn)
+            {
+                FinalizeGroup();
+                continue;
+            }
+
+            var columnData = new string(columnBuilder.ToString()
+                .Where(character => character != ' ')
+                .ToArray());
+
+            if (columnData.Length == 0)
+            {
+                FinalizeGroup();
+                continue;
+            }
+
+            char? operationSymbol = null;
+
+            if (columnData[^1] == '+' || columnData[^1] == '*')
+            {
+                operationSymbol = columnData[^1];
+                columnData = columnData[..^1];
+            }
+
+            if (columnData.Length > 0)
+            {
+                var columnValue = BigInteger.Parse(columnData);
+                currentNumbers.Add(columnValue);
+            }
+
+            if (operationSymbol is not null)
+            {
+                currentOperator = operationSymbol;
+                FinalizeGroup();
+            }
+        }
+
+        FinalizeGroup();
 
         Console.WriteLine("Step two result:");
         Console.WriteLine(total);
