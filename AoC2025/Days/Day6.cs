@@ -70,9 +70,10 @@ public class Day6
             throw new InvalidOperationException("Input must include at least one row of values and an operator row.");
         }
 
-        var columnCount = lines.Max(line => line.Length);
-        var operatorRow = lines[^1].PadRight(columnCount, ' ');
-        var valueRows = lines[..^1]
+        var valueRowsRaw = lines[..^1].ToList();
+        var columnCount = valueRowsRaw.Max(line => line.Length);
+        var operatorRow = lines[^1];
+        var valueRows = valueRowsRaw
             .Select(line => line.PadRight(columnCount, ' '))
             .ToList();
 
@@ -80,6 +81,12 @@ public class Day6
 
         for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
         {
+            if (columnIndex >= operatorRow.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Missing operator for column {columnIndex} (operator row too short).");
+            }
+
             var operationSymbol = operatorRow[columnIndex];
             var isAddition = operationSymbol == '+';
             var isMultiplication = operationSymbol == '*';
