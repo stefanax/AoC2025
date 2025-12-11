@@ -61,8 +61,72 @@ public class Day6
     public void Step2()
     {
         var input = _inputFiles.ReadInputFileForDay(6, false);
-        var inputList = _inputFiles.SplitString(input);
+        var lines = _inputFiles.SplitString(input)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToList();
+
+        if (lines.Count < 2)
+        {
+            throw new InvalidOperationException("Input must include at least one row of values and an operator row.");
+        }
+
+        var valueRowsRaw = lines[..^1].ToList();
+        var columnCount = valueRowsRaw.Max(line => line.Length);
+        var operatorRow = lines[^1];
+        var valueRows = valueRowsRaw
+            .Select(line => line.PadRight(columnCount, ' '))
+            .ToList();
+
+        BigInteger total = 0;
+
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+        {
+            if (columnIndex >= operatorRow.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Missing operator for column {columnIndex} (operator row too short).");
+            }
+
+            var operationSymbol = operatorRow[columnIndex];
+            var isAddition = operationSymbol == '+';
+            var isMultiplication = operationSymbol == '*';
+
+            if (!isAddition && !isMultiplication)
+            {
+                throw new InvalidOperationException($"Unexpected operator '{operationSymbol}' in column {columnIndex}.");
+            }
+
+            var subColumnValues = new List<BigInteger>();
+            var isBuildingNumber = false;
+
+            foreach (var valueRow in valueRows)
+            {
+                var character = valueRow[columnIndex];
+
+                if (!char.IsDigit(character))
+                {
+                    isBuildingNumber = false;
+                    continue;
+                }
+
+                if (!isBuildingNumber)
+                {
+                    subColumnValues.Add(new BigInteger(character - '0'));
+                    isBuildingNumber = true;
+                    continue;
+                }
+
+                subColumnValues[^1] = subColumnValues[^1] * 10 + (character - '0');
+            }
+
+            var columnResult = isAddition
+                ? subColumnValues.Aggregate(BigInteger.Zero, (current, value) => current + value)
+                : subColumnValues.Aggregate(BigInteger.One, (current, value) => current * value);
+
+            total += columnResult;
+        }
 
         Console.WriteLine("Step two result:");
+        Console.WriteLine(total);
     }
 }
