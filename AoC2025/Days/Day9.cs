@@ -64,9 +64,8 @@ public class Day9
             coordinates.Add((int.Parse(parts[0]), int.Parse(parts[1])));
         }
 
-        var redTiles = new HashSet<(int X, int Y)>(coordinates);
         var (minX, maxX, minY, maxY) = BoundingBox(coordinates);
-        var grid = BuildTileGrid(coordinates, redTiles, minX, maxX, minY, maxY);
+        var rowCoverage = BuildRowCoverage(coordinates, minY, maxY);
 
         long maxArea = 0;
 
@@ -83,7 +82,7 @@ public class Day9
                 var rectMinY = Math.Min(first.Y, second.Y);
                 var rectMaxY = Math.Max(first.Y, second.Y);
 
-                if (!RectangleFilled(rectMinX, rectMaxX, rectMinY, rectMaxY, grid, minX, minY))
+                if (!RectangleFilled(rectMinX, rectMaxX, rectMinY, rectMaxY, rowCoverage))
                 {
                     continue;
                 }
@@ -109,15 +108,15 @@ public class Day9
         return (minX, maxX, minY, maxY);
     }
 
-    private static TileState[,] BuildTileGrid(List<(int X, int Y)> coordinates, HashSet<(int X, int Y)> redTiles, int minX, int maxX, int minY, int maxY)
+    private static Dictionary<int, List<(int Start, int End)>> BuildRowCoverage(List<(int X, int Y)> coordinates, int minY, int maxY)
     {
-        var width = maxX - minX + 3;
-        var height = maxY - minY + 3;
-        var grid = new TileState[width, height];
+        var intersections = new Dictionary<int, List<int>>();
+        var coverage = new Dictionary<int, List<(int Start, int End)>>();
 
-        foreach (var red in redTiles)
+        for (var y = minY; y <= maxY; y++)
         {
-            grid[red.X - minX + 1, red.Y - minY + 1] = TileState.Red;
+            intersections[y] = new List<int>();
+            coverage[y] = new List<(int Start, int End)>();
         }
 
         for (var index = 0; index < coordinates.Count; index++)
@@ -127,131 +126,87 @@ public class Day9
 
             if (current.X == next.X)
             {
-                var start = Math.Min(current.Y, next.Y);
-                var end = Math.Max(current.Y, next.Y);
+                var yStart = Math.Min(current.Y, next.Y);
+                var yEnd = Math.Max(current.Y, next.Y);
 
-                for (var y = start; y <= end; y++)
+                for (var y = yStart; y < yEnd; y++)
                 {
-                    var point = (current.X, y);
-                    if (!redTiles.Contains(point))
-                    {
-                        grid[current.X - minX + 1, y - minY + 1] = TileState.Green;
-                    }
+                    intersections[y].Add(current.X);
                 }
             }
             else if (current.Y == next.Y)
             {
-                var start = Math.Min(current.X, next.X);
-                var end = Math.Max(current.X, next.X);
+                var xStart = Math.Min(current.X, next.X);
+                var xEnd = Math.Max(current.X, next.X);
 
-                for (var x = start; x <= end; x++)
-                {
-                    var point = (x, current.Y);
-                    if (!redTiles.Contains(point))
-                    {
-                        grid[x - minX + 1, current.Y - minY + 1] = TileState.Green;
-                    }
-                }
+                AddInterval(coverage[current.Y], xStart, xEnd);
             }
         }
 
-        FloodFillOutside(grid, minX, minY);
-
-        for (var x = 1; x < width - 1; x++)
+        foreach (var kvp in intersections)
         {
-            for (var y = 1; y < height - 1; y++)
+            var y = kvp.Key;
+            var rowIntersections = kvp.Value;
+
+            if (rowIntersections.Count < 2)
             {
-                if (grid[x, y] == TileState.Unknown)
-                {
-                    grid[x, y] = TileState.Green;
-                }
+                continue;
+            }
+
+            rowIntersections.Sort();
+
+            for (var i = 0; i + 1 < rowIntersections.Count; i += 2)
+            {
+                var start = rowIntersections[i];
+                var end = rowIntersections[i + 1];
+                AddInterval(coverage[y], start, end);
             }
         }
 
-        return grid;
+        return coverage;
     }
 
-    private static void FloodFillOutside(TileState[,] grid, int minX, int minY)
+    private static void AddInterval(List<(int Start, int End)> intervals, int start, int end)
     {
-        var width = grid.GetLength(0);
-        var height = grid.GetLength(1);
-        var queue = new Queue<(int X, int Y)>();
-        var visited = new bool[width, height];
-
-        queue.Enqueue((0, 0));
-        visited[0, 0] = true;
-
-        var directions = new (int X, int Y)[]
+        if (start > end)
         {
-            (1, 0),
-            (-1, 0),
-            (0, 1),
-            (0, -1)
-        };
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var direction in directions)
-            {
-                var nextX = current.X + direction.X;
-                var nextY = current.Y + direction.Y;
-
-                if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height)
-                {
-                    continue;
-                }
-
-                if (visited[nextX, nextY])
-                {
-                    continue;
-                }
-
-                if (grid[nextX, nextY] != TileState.Unknown)
-                {
-                    continue;
-                }
-
-                visited[nextX, nextY] = true;
-                queue.Enqueue((nextX, nextY));
-            }
+            (start, end) = (end, start);
         }
 
-        for (var x = 0; x < width; x++)
+        var index = 0;
+
+        while (index < intervals.Count && intervals[index].End < start - 1)
         {
-            for (var y = 0; y < height; y++)
-            {
-                if (visited[x, y])
-                {
-                    grid[x, y] = TileState.Outside;
-                }
-            }
+            index++;
         }
+
+        while (index < intervals.Count && intervals[index].Start <= end + 1)
+        {
+            start = Math.Min(start, intervals[index].Start);
+            end = Math.Max(end, intervals[index].End);
+            intervals.RemoveAt(index);
+        }
+
+        intervals.Insert(index, (start, end));
     }
 
-    private static bool RectangleFilled(int minX, int maxX, int minY, int maxY, TileState[,] grid, int originX, int originY)
+    private static bool RectangleFilled(int minX, int maxX, int minY, int maxY, Dictionary<int, List<(int Start, int End)>> rowCoverage)
     {
-        for (var x = minX; x <= maxX; x++)
+        for (var y = minY; y <= maxY; y++)
         {
-            for (var y = minY; y <= maxY; y++)
+            if (!rowCoverage.TryGetValue(y, out var intervals) || intervals.Count == 0)
             {
-                var state = grid[x - originX + 1, y - originY + 1];
-                if (state != TileState.Green && state != TileState.Red)
-                {
-                    return false;
-                }
+                return false;
+            }
+
+            var covered = intervals.Any(interval => interval.Start <= minX && interval.End >= maxX);
+
+            if (!covered)
+            {
+                return false;
             }
         }
 
         return true;
-    }
-
-    private enum TileState
-    {
-        Unknown,
-        Red,
-        Green,
-        Outside
     }
 }
