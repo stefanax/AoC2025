@@ -6,6 +6,7 @@ namespace AoC2024
         {
             var day = new Day10();
             day.Step1();
+            day.Step2();
         }
     }
 }
