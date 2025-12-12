@@ -64,10 +64,9 @@ public class Day9
             coordinates.Add((int.Parse(parts[0]), int.Parse(parts[1])));
         }
 
-        var verticalEdges = BuildVerticalEdges(coordinates);
-        var horizontalEdges = BuildHorizontalEdges(coordinates);
-        var rowSegments = BuildRowSegments(verticalEdges, coordinates);
-        var columnSegments = BuildColumnSegments(horizontalEdges, coordinates);
+        var redTiles = new HashSet<(int X, int Y)>(coordinates);
+        var (minX, maxX, minY, maxY) = BoundingBox(coordinates);
+        var grid = BuildTileGrid(coordinates, redTiles, minX, maxX, minY, maxY);
 
         long maxArea = 0;
 
@@ -79,12 +78,12 @@ public class Day9
             {
                 var second = coordinates[secondIndex];
 
-                var minX = Math.Min(first.X, second.X);
-                var maxX = Math.Max(first.X, second.X);
-                var minY = Math.Min(first.Y, second.Y);
-                var maxY = Math.Max(first.Y, second.Y);
+                var rectMinX = Math.Min(first.X, second.X);
+                var rectMaxX = Math.Max(first.X, second.X);
+                var rectMinY = Math.Min(first.Y, second.Y);
+                var rectMaxY = Math.Max(first.Y, second.Y);
 
-                if (!RectangleInsideBorder(minX, maxX, minY, maxY, rowSegments, columnSegments))
+                if (!RectangleFilled(rectMinX, rectMaxX, rectMinY, rectMaxY, grid, minX, minY))
                 {
                     continue;
                 }
@@ -100,234 +99,159 @@ public class Day9
         Console.WriteLine(maxArea);
     }
 
-    private static List<(int X, int MinY, int MaxY)> BuildVerticalEdges(List<(int X, int Y)> coordinates)
-    {
-        var verticalEdges = new List<(int X, int MinY, int MaxY)>();
-
-        for (var index = 0; index < coordinates.Count; index++)
-        {
-            var current = coordinates[index];
-            var next = coordinates[(index + 1) % coordinates.Count];
-
-            if (current.X != next.X)
-            {
-                continue;
-            }
-
-            var minY = Math.Min(current.Y, next.Y);
-            var maxY = Math.Max(current.Y, next.Y);
-            verticalEdges.Add((current.X, minY, maxY));
-        }
-
-        return verticalEdges;
-    }
-
-    private static List<(int Y, int MinX, int MaxX)> BuildHorizontalEdges(List<(int X, int Y)> coordinates)
-    {
-        var horizontalEdges = new List<(int Y, int MinX, int MaxX)>();
-
-        for (var index = 0; index < coordinates.Count; index++)
-        {
-            var current = coordinates[index];
-            var next = coordinates[(index + 1) % coordinates.Count];
-
-            if (current.Y != next.Y)
-            {
-                continue;
-            }
-
-            var minX = Math.Min(current.X, next.X);
-            var maxX = Math.Max(current.X, next.X);
-            horizontalEdges.Add((current.Y, minX, maxX));
-        }
-
-        return horizontalEdges;
-    }
-
-    private static List<RowSegment> BuildRowSegments(List<(int X, int MinY, int MaxY)> verticalEdges, List<(int X, int Y)> coordinates)
-    {
-        var minY = coordinates.Min(c => c.Y);
-        var maxY = coordinates.Max(c => c.Y);
-
-        var segments = new List<RowSegment>();
-        List<(int Start, int End)>? previousIntervals = null;
-
-        for (var y = minY; y <= maxY; y++)
-        {
-            var intersections = new List<int>();
-
-            foreach (var edge in verticalEdges)
-            {
-                if (y >= edge.MinY && y <= edge.MaxY)
-                {
-                    intersections.Add(edge.X);
-                }
-            }
-
-            intersections.Sort();
-
-            var intervals = new List<(int Start, int End)>();
-            for (var i = 0; i < intersections.Count - 1; i += 2)
-            {
-                intervals.Add((intersections[i], intersections[i + 1]));
-            }
-
-            if (previousIntervals == null || !IntervalsEqual(previousIntervals, intervals))
-            {
-                if (segments.Count > 0)
-                {
-                    segments[^1].EndY = y - 1;
-                }
-
-                segments.Add(new RowSegment(y, y, intervals));
-                previousIntervals = intervals;
-            }
-        }
-
-        if (segments.Count > 0)
-        {
-            segments[^1].EndY = maxY;
-        }
-
-        return segments;
-    }
-
-    private static List<ColumnSegment> BuildColumnSegments(List<(int Y, int MinX, int MaxX)> horizontalEdges, List<(int X, int Y)> coordinates)
+    private static (int MinX, int MaxX, int MinY, int MaxY) BoundingBox(List<(int X, int Y)> coordinates)
     {
         var minX = coordinates.Min(c => c.X);
         var maxX = coordinates.Max(c => c.X);
+        var minY = coordinates.Min(c => c.Y);
+        var maxY = coordinates.Max(c => c.Y);
 
-        var segments = new List<ColumnSegment>();
-        List<(int Start, int End)>? previousIntervals = null;
+        return (minX, maxX, minY, maxY);
+    }
 
+    private static TileState[,] BuildTileGrid(List<(int X, int Y)> coordinates, HashSet<(int X, int Y)> redTiles, int minX, int maxX, int minY, int maxY)
+    {
+        var width = maxX - minX + 3;
+        var height = maxY - minY + 3;
+        var grid = new TileState[width, height];
+
+        foreach (var red in redTiles)
+        {
+            grid[red.X - minX + 1, red.Y - minY + 1] = TileState.Red;
+        }
+
+        for (var index = 0; index < coordinates.Count; index++)
+        {
+            var current = coordinates[index];
+            var next = coordinates[(index + 1) % coordinates.Count];
+
+            if (current.X == next.X)
+            {
+                var start = Math.Min(current.Y, next.Y);
+                var end = Math.Max(current.Y, next.Y);
+
+                for (var y = start; y <= end; y++)
+                {
+                    var point = (current.X, y);
+                    if (!redTiles.Contains(point))
+                    {
+                        grid[current.X - minX + 1, y - minY + 1] = TileState.Green;
+                    }
+                }
+            }
+            else if (current.Y == next.Y)
+            {
+                var start = Math.Min(current.X, next.X);
+                var end = Math.Max(current.X, next.X);
+
+                for (var x = start; x <= end; x++)
+                {
+                    var point = (x, current.Y);
+                    if (!redTiles.Contains(point))
+                    {
+                        grid[x - minX + 1, current.Y - minY + 1] = TileState.Green;
+                    }
+                }
+            }
+        }
+
+        FloodFillOutside(grid, minX, minY);
+
+        for (var x = 1; x < width - 1; x++)
+        {
+            for (var y = 1; y < height - 1; y++)
+            {
+                if (grid[x, y] == TileState.Unknown)
+                {
+                    grid[x, y] = TileState.Green;
+                }
+            }
+        }
+
+        return grid;
+    }
+
+    private static void FloodFillOutside(TileState[,] grid, int minX, int minY)
+    {
+        var width = grid.GetLength(0);
+        var height = grid.GetLength(1);
+        var queue = new Queue<(int X, int Y)>();
+        var visited = new bool[width, height];
+
+        queue.Enqueue((0, 0));
+        visited[0, 0] = true;
+
+        var directions = new (int X, int Y)[]
+        {
+            (1, 0),
+            (-1, 0),
+            (0, 1),
+            (0, -1)
+        };
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            foreach (var direction in directions)
+            {
+                var nextX = current.X + direction.X;
+                var nextY = current.Y + direction.Y;
+
+                if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height)
+                {
+                    continue;
+                }
+
+                if (visited[nextX, nextY])
+                {
+                    continue;
+                }
+
+                if (grid[nextX, nextY] != TileState.Unknown)
+                {
+                    continue;
+                }
+
+                visited[nextX, nextY] = true;
+                queue.Enqueue((nextX, nextY));
+            }
+        }
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                if (visited[x, y])
+                {
+                    grid[x, y] = TileState.Outside;
+                }
+            }
+        }
+    }
+
+    private static bool RectangleFilled(int minX, int maxX, int minY, int maxY, TileState[,] grid, int originX, int originY)
+    {
         for (var x = minX; x <= maxX; x++)
         {
-            var intersections = new List<int>();
-
-            foreach (var edge in horizontalEdges)
+            for (var y = minY; y <= maxY; y++)
             {
-                if (x >= edge.MinX && x <= edge.MaxX)
+                var state = grid[x - originX + 1, y - originY + 1];
+                if (state != TileState.Green && state != TileState.Red)
                 {
-                    intersections.Add(edge.Y);
+                    return false;
                 }
-            }
-
-            intersections.Sort();
-
-            var intervals = new List<(int Start, int End)>();
-            for (var i = 0; i < intersections.Count - 1; i += 2)
-            {
-                intervals.Add((intersections[i], intersections[i + 1]));
-            }
-
-            if (previousIntervals == null || !IntervalsEqual(previousIntervals, intervals))
-            {
-                if (segments.Count > 0)
-                {
-                    segments[^1].EndX = x - 1;
-                }
-
-                segments.Add(new ColumnSegment(x, x, intervals));
-                previousIntervals = intervals;
-            }
-        }
-
-        if (segments.Count > 0)
-        {
-            segments[^1].EndX = maxX;
-        }
-
-        return segments;
-    }
-
-    private static bool IntervalsEqual(List<(int Start, int End)> first, List<(int Start, int End)> second)
-    {
-        if (first.Count != second.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < first.Count; index++)
-        {
-            if (first[index] != second[index])
-            {
-                return false;
             }
         }
 
         return true;
     }
 
-    private static bool RectangleInsideBorder(int minX, int maxX, int minY, int maxY, List<RowSegment> rowSegments, List<ColumnSegment> columnSegments)
+    private enum TileState
     {
-        foreach (var segment in rowSegments)
-        {
-            if (segment.StartY > maxY)
-            {
-                break;
-            }
-
-            if (segment.EndY < minY)
-            {
-                continue;
-            }
-
-            if (!segment.Intervals.Any(interval => interval.Start <= minX && interval.End >= maxX))
-            {
-                return false;
-            }
-        }
-
-        foreach (var segment in columnSegments)
-        {
-            if (segment.StartX > maxX)
-            {
-                break;
-            }
-
-            if (segment.EndX < minX)
-            {
-                continue;
-            }
-
-            if (!segment.Intervals.Any(interval => interval.Start <= minY && interval.End >= maxY))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private class RowSegment
-    {
-        public RowSegment(int startY, int endY, List<(int Start, int End)> intervals)
-        {
-            StartY = startY;
-            EndY = endY;
-            Intervals = intervals;
-        }
-
-        public int StartY { get; }
-
-        public int EndY { get; set; }
-
-        public List<(int Start, int End)> Intervals { get; }
-    }
-
-    private class ColumnSegment
-    {
-        public ColumnSegment(int startX, int endX, List<(int Start, int End)> intervals)
-        {
-            StartX = startX;
-            EndX = endX;
-            Intervals = intervals;
-        }
-
-        public int StartX { get; }
-
-        public int EndX { get; set; }
-
-        public List<(int Start, int End)> Intervals { get; }
+        Unknown,
+        Red,
+        Green,
+        Outside
     }
 }
