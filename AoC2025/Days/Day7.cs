@@ -22,6 +22,9 @@ public class Day7
         }
 
         var width = rows.Max(line => line.Length);
+        var normalizedRows = rows
+            .Select(line => line.PadRight(width, '.'))
+            .ToList();
 
         var startRow = -1;
         var startColumn = -1;
