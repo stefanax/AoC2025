@@ -12,6 +12,7 @@ public class Day7
         var input = _inputFiles.ReadInputFileForDay(7, false);
 
         var rows = _inputFiles.SplitString(input)
+            .Select(line => line.TrimEnd('\r'))
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
 
@@ -28,9 +29,9 @@ public class Day7
         var startRow = -1;
         var startColumn = -1;
 
-        for (var rowIndex = 0; rowIndex < normalizedRows.Count; rowIndex++)
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
         {
-            var columnIndex = normalizedRows[rowIndex].IndexOf('S');
+            var columnIndex = rows[rowIndex].IndexOf('S');
 
             if (columnIndex == -1)
             {
@@ -53,19 +54,15 @@ public class Day7
 
         var currentColumns = new HashSet<int> { startColumn };
 
-        for (var rowIndex = startRow + 1; rowIndex < normalizedRows.Count; rowIndex++)
+        for (var rowIndex = startRow + 1; rowIndex < rows.Count; rowIndex++)
         {
-            var row = normalizedRows[rowIndex];
             var nextColumns = new HashSet<int>();
 
             foreach (var column in currentColumns)
             {
-                if (column < 0 || column >= width)
-                {
-                    continue;
-                }
-
-                var cell = row[column];
+                var cell = column >= 0 && column < rows[rowIndex].Length
+                    ? rows[rowIndex][column]
+                    : '.';
 
                 if (cell == '^')
                 {
