@@ -54,6 +54,27 @@ public class Day8
             _sizes[rootFirst] += _sizes[rootSecond];
         }
 
+        public bool TryUnion(int first, int second)
+        {
+            var rootFirst = Find(first);
+            var rootSecond = Find(second);
+
+            if (rootFirst == rootSecond)
+            {
+                return false;
+            }
+
+            if (_sizes[rootFirst] < _sizes[rootSecond])
+            {
+                (rootFirst, rootSecond) = (rootSecond, rootFirst);
+            }
+
+            _parents[rootSecond] = rootFirst;
+            _sizes[rootFirst] += _sizes[rootSecond];
+
+            return true;
+        }
+
         public int FindRoot(int index)
         {
             return Find(index);
@@ -143,9 +164,71 @@ public class Day8
     {
         var input = _inputFiles.ReadInputFileForDay(8, false);
         var inputList = _inputFiles.SplitString(input);
-        _ = inputList;
+        var coordinates = new List<(int X, int Y, int Z)>();
+
+        foreach (var line in inputList)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var parts = line.Split(',');
+            coordinates.Add((int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2])));
+        }
+
+        var pairDistances = new List<(long DistanceSquared, int FirstIndex, int SecondIndex)>();
+
+        for (var firstIndex = 0; firstIndex < coordinates.Count; firstIndex++)
+        {
+            for (var secondIndex = firstIndex + 1; secondIndex < coordinates.Count; secondIndex++)
+            {
+                var first = coordinates[firstIndex];
+                var second = coordinates[secondIndex];
+
+                var deltaX = first.X - second.X;
+                var deltaY = first.Y - second.Y;
+                var deltaZ = first.Z - second.Z;
+
+                var distanceSquared = (long)deltaX * deltaX + (long)deltaY * deltaY + (long)deltaZ * deltaZ;
+                pairDistances.Add((distanceSquared, firstIndex, secondIndex));
+            }
+        }
+
+        pairDistances.Sort((left, right) => left.DistanceSquared.CompareTo(right.DistanceSquared));
+
+        var unionFind = new UnionFind(coordinates.Count);
+        var groupsRemaining = coordinates.Count;
+        (int FirstIndex, int SecondIndex) lastConnection = (-1, -1);
+
+        foreach (var (_, firstIndex, secondIndex) in pairDistances)
+        {
+            if (!unionFind.TryUnion(firstIndex, secondIndex))
+            {
+                continue;
+            }
+
+            groupsRemaining--;
+
+            if (groupsRemaining == 1)
+            {
+                lastConnection = (firstIndex, secondIndex);
+                break;
+            }
+        }
+
+        if (lastConnection.FirstIndex == -1)
+        {
+            Console.WriteLine("Step two result:");
+            Console.WriteLine("No connection found.");
+            return;
+        }
+
+        var firstCoordinate = coordinates[lastConnection.FirstIndex];
+        var secondCoordinate = coordinates[lastConnection.SecondIndex];
+        var result = (long)firstCoordinate.X * secondCoordinate.X;
 
         Console.WriteLine("Step two result:");
-        Console.WriteLine("Not implemented yet.");
+        Console.WriteLine(result);
     }
 }
