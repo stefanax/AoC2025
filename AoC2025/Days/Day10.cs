@@ -42,88 +42,83 @@ public class Day10
     private static List<(bool[] Target, List<List<int>> Buttons)> ParseMachines(string[] lines)
     {
         var machines = new List<(bool[] Target, List<List<int>> Buttons)>();
-        var currentBlock = new List<string>();
-
-        void FlushCurrent()
-        {
-            if (currentBlock.Count == 0)
-            {
-                return;
-            }
-
-            machines.Add(ParseMachineBlock(currentBlock));
-            currentBlock.Clear();
-        }
 
         foreach (var line in lines)
         {
             if (string.IsNullOrWhiteSpace(line))
             {
-                FlushCurrent();
+                continue;
             }
-            else
-            {
-                currentBlock.Add(line);
-            }
-        }
 
-        FlushCurrent();
+            machines.Add(ParseMachineLine(line));
+        }
 
         return machines;
     }
 
-    private static (bool[] Target, List<List<int>> Buttons) ParseMachineBlock(List<string> blockLines)
+    private static (bool[] Target, List<List<int>> Buttons) ParseMachineLine(string line)
     {
-        var firstContentLine = blockLines.FirstOrDefault(l => l.Any(ch => ch is '#' or '.'));
-
-        if (firstContentLine == null)
-        {
-            throw new InvalidOperationException("Machine block missing target state line.");
-        }
-
-        var trimmed = firstContentLine.Trim();
-
-        var targetState = trimmed.TakeWhile(c => c is '#' or '.').ToArray();
-        var target = targetState.Select(c => c == '#').ToArray();
-
-        var buttons = new List<List<int>>();
-
-        foreach (var line in blockLines)
-        {
-            var startIndex = 0;
-
-            while (true)
-            {
-                var openIndex = line.IndexOf('(', startIndex);
-
-                if (openIndex == -1)
-                {
-                    break;
-                }
-
-                var closeIndex = line.IndexOf(')', openIndex + 1);
-
-                if (closeIndex == -1)
-                {
-                    break;
-                }
-
-                var content = line.Substring(openIndex + 1, closeIndex - openIndex - 1);
-
-                if (!string.IsNullOrWhiteSpace(content))
-                {
-                    var numbers = content.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(s => int.Parse(s.Trim()))
-                        .ToList();
-
-                    buttons.Add(numbers);
-                }
-
-                startIndex = closeIndex + 1;
-            }
-        }
+        var target = ParseTarget(line);
+        var buttons = ParseButtons(line);
 
         return (target, buttons);
+    }
+
+    private static bool[] ParseTarget(string line)
+    {
+        var firstTargetIndex = line.IndexOfAny(['#', '.']);
+
+        if (firstTargetIndex == -1)
+        {
+            throw new InvalidOperationException("Machine line missing target state.");
+        }
+
+        var targetChars = line[firstTargetIndex..].TakeWhile(c => c is '#' or '.').ToArray();
+
+        if (targetChars.Length == 0)
+        {
+            throw new InvalidOperationException("Machine line missing target state.");
+        }
+
+        return targetChars.Select(c => c == '#').ToArray();
+    }
+
+    private static List<List<int>> ParseButtons(string line)
+    {
+        var buttons = new List<List<int>>();
+        var startIndex = 0;
+
+        while (true)
+        {
+            var openIndex = line.IndexOf('(', startIndex);
+
+            if (openIndex == -1)
+            {
+                break;
+            }
+
+            var closeIndex = line.IndexOf(')', openIndex + 1);
+
+            if (closeIndex == -1)
+            {
+                break;
+            }
+
+            var content = line.Substring(openIndex + 1, closeIndex - openIndex - 1);
+
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                var numbers = content.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.Parse(s.Trim()))
+                    .ToList();
+
+                buttons.Add(numbers);
+            }
+
+            startIndex = closeIndex + 1;
+        }
+
+        return buttons;
     }
 
     private static int MinimumPresses((bool[] Target, List<List<int>> Buttons) machine)
