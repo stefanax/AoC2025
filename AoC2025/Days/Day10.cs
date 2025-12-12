@@ -672,7 +672,9 @@ public class Day10
             {
                 AddScaled(current, basis, t);
 
-                if (best is null || current.Sum() < best)
+                var presses = current.Aggregate(BigInteger.Zero, static (acc, val) => acc + val);
+
+                if (best is null || presses < best)
                 {
                     Search(index + 1);
                 }
