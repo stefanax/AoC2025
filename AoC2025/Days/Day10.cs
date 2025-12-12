@@ -222,51 +222,84 @@ public class Day10
 
     private static long MinimumPressesToReachLevels((BigInteger[] Target, List<List<int>> Buttons) machine)
     {
-        var target = machine.Target;
+        var remaining = (BigInteger[])machine.Target.Clone();
         var buttons = machine.Buttons;
 
-        var numberOfPositions = target.Length;
-        var numberOfButtons = buttons.Count;
+        long? best = null;
 
-        if (numberOfButtons == 0)
+        void ApplyPresses(BigInteger count, IReadOnlyList<int> affected, int sign)
         {
-            if (target.Any(t => t != 0))
+            foreach (var index in affected)
             {
-                throw new InvalidOperationException("Machine configuration has no solution.");
+                remaining[index] -= sign * count; // subtract when sign is +1, add back when -1
+            }
+        }
+
+        void Search(int buttonIndex, long pressesSoFar)
+        {
+            if (best.HasValue && pressesSoFar >= best.Value)
+            {
+                return;
             }
 
-            return 0;
-        }
-
-        var matrix = new BigInteger[numberOfPositions, numberOfButtons];
-        var rhs = new BigInteger[numberOfPositions];
-
-        for (var position = 0; position < numberOfPositions; position++)
-        {
-            rhs[position] = target[position];
-        }
-
-        for (var buttonIndex = 0; buttonIndex < numberOfButtons; buttonIndex++)
-        {
-            foreach (var positionIndex in buttons[buttonIndex])
+            if (buttonIndex == buttons.Count)
             {
-                if (positionIndex >= 0 && positionIndex < numberOfPositions)
+                if (remaining.All(value => value == 0))
                 {
-                    matrix[positionIndex, buttonIndex] = 1;
+                    best = pressesSoFar;
+                }
+
+                return;
+            }
+
+            var affected = buttons[buttonIndex]
+                .Where(index => index >= 0 && index < remaining.Length)
+                .ToList();
+
+            if (affected.Count == 0)
+            {
+                Search(buttonIndex + 1, pressesSoFar);
+                return;
+            }
+
+            var maxPresses = affected.Select(index => remaining[index]).Min();
+
+            if (maxPresses < 0)
+            {
+                return;
+            }
+
+            if (best.HasValue)
+            {
+                maxPresses = BigInteger.Min(maxPresses, best.Value - pressesSoFar);
+            }
+
+            var cappedMax = (long)BigInteger.Min(maxPresses, new BigInteger(long.MaxValue));
+
+            for (var count = 0; count <= cappedMax; count++)
+            {
+                if (count > 0)
+                {
+                    ApplyPresses(count, affected, +1);
+                }
+
+                Search(buttonIndex + 1, pressesSoFar + count);
+
+                if (count > 0)
+                {
+                    ApplyPresses(count, affected, -1);
                 }
             }
         }
 
-        var (solutionExists, particularSolution, nullspace) = SolveIntegerSystem(matrix, rhs);
+        Search(0, 0);
 
-        if (!solutionExists)
+        if (!best.HasValue)
         {
-            throw new InvalidOperationException("Machine configuration has no solution.");
+            throw new InvalidOperationException("Machine configuration has no non-negative solution.");
         }
 
-        var minPresses = MinimizeIntegerPresses(particularSolution, nullspace);
-
-        return (long)minPresses;
+        return best.Value;
     }
 
     private static (bool SolutionExists, bool[] ParticularSolution, List<bool[]> NullspaceBasis) SolveLinearSystem(bool[,] matrix, bool[] rhs)
