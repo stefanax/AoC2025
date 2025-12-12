@@ -34,6 +34,7 @@ public class Day7
         }
 
         var currentPositions = new HashSet<int> { startColumn };
+        var splitCount = 0;
 
         for (var rowIndex = startRow + 1; rowIndex < grid.Length; rowIndex++)
         {
@@ -59,6 +60,7 @@ public class Day7
 
                 if (cell == '^')
                 {
+                    splitCount++;
                     AddPositionIfValid(position - 1);
                     AddPositionIfValid(position + 1);
                 }
@@ -72,7 +74,7 @@ public class Day7
         }
 
         Console.WriteLine("Step one result:");
-        Console.WriteLine(currentPositions.Count);
+        Console.WriteLine(splitCount);
     }
 
     public void Step2()
