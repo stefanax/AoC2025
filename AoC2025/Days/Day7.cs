@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 
 namespace AoC2024;
 
@@ -10,96 +9,79 @@ public class Day7
     public void Step1()
     {
         var input = _inputFiles.ReadInputFileForDay(7, false);
-
-        var rows = _inputFiles.SplitString(input)
-            .Select(line => line.TrimEnd('\r').TrimStart('\uFEFF'))
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .ToList();
-
-        if (rows.Count == 0)
-        {
-            throw new InvalidOperationException("Input must contain at least one row.");
-        }
-
-        var width = rows.Max(line => line.Length);
+        var grid = _inputFiles.SplitString(input);
 
         var startRow = -1;
         var startColumn = -1;
 
-        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        for (var rowIndex = 0; rowIndex < grid.Length; rowIndex++)
         {
-            var columnIndex = rows[rowIndex].IndexOf('S');
+            var columnIndex = grid[rowIndex].IndexOf('S');
 
             if (columnIndex == -1)
             {
                 continue;
             }
 
-            if (startRow != -1)
-            {
-                throw new InvalidOperationException("Input must contain exactly one starting position 'S'.");
-            }
-
             startRow = rowIndex;
             startColumn = columnIndex;
+            break;
         }
 
-        if (startRow == -1)
+        if (startRow == -1 || startColumn == -1)
         {
             throw new InvalidOperationException("Input must contain a starting position 'S'.");
         }
 
-        var currentColumns = new HashSet<int> { startColumn };
+        var currentPositions = new HashSet<int> { startColumn };
+        var splitCount = 0;
 
-        for (var rowIndex = startRow + 1; rowIndex < rows.Count; rowIndex++)
+        for (var rowIndex = startRow + 1; rowIndex < grid.Length; rowIndex++)
         {
-            var nextColumns = new HashSet<int>();
+            var row = grid[rowIndex];
+            var nextPositions = new HashSet<int>();
 
-            foreach (var column in currentColumns)
+            void AddPositionIfValid(int column)
             {
-                var cell = column >= 0 && column < rows[rowIndex].Length
-                    ? rows[rowIndex][column]
-                    : '.';
-
-                if (IsSplitter(cell))
+                if (column >= 0 && column < row.Length)
                 {
-                    if (column - 1 >= 0)
-                    {
-                        nextColumns.Add(column - 1);
-                    }
+                    nextPositions.Add(column);
+                }
+            }
 
-                    if (column + 1 < width)
-                    {
-                        nextColumns.Add(column + 1);
-                    }
-
+            foreach (var position in currentPositions)
+            {
+                if (position < 0 || position >= row.Length)
+                {
                     continue;
                 }
 
-                nextColumns.Add(column);
+                var cell = row[position];
+
+                if (cell == '^')
+                {
+                    splitCount++;
+                    AddPositionIfValid(position - 1);
+                    AddPositionIfValid(position + 1);
+                }
+                else
+                {
+                    AddPositionIfValid(position);
+                }
             }
 
-            currentColumns = nextColumns;
+            currentPositions = nextPositions;
         }
 
         Console.WriteLine("Step one result:");
-        Console.WriteLine(currentColumns.Count);
-
+        Console.WriteLine(splitCount);
     }
 
     public void Step2()
     {
-        var input = _inputFiles.ReadInputFileForDay(7, false);
+        _ = _inputFiles.ReadInputFileForDay(7, false);
 
         Console.WriteLine("Step two result:");
         Console.WriteLine("Not implemented yet.");
-    }
-
-    private static bool IsSplitter(char cell)
-    {
-        return cell == '^'
-               || cell == '\u02C4'   // modifier letter up arrow (˄)
-               || cell == '\uFF3E'   // fullwidth circumflex (^ in some encodings)
-               || cell == '\u2191';  // upward arrow (↑)
     }
 }
