@@ -12,7 +12,7 @@ public class Day7
         var input = _inputFiles.ReadInputFileForDay(7, false);
 
         var rows = _inputFiles.SplitString(input)
-            .Select(line => line.TrimEnd('\r'))
+            .Select(line => line.TrimEnd('\r').TrimStart('\uFEFF'))
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
 
@@ -22,9 +22,6 @@ public class Day7
         }
 
         var width = rows.Max(line => line.Length);
-        var normalizedRows = rows
-            .Select(line => line.PadRight(width, '.'))
-            .ToList();
 
         var startRow = -1;
         var startColumn = -1;
@@ -64,7 +61,7 @@ public class Day7
                     ? rows[rowIndex][column]
                     : '.';
 
-                if (cell == '^')
+                if (IsSplitter(cell))
                 {
                     if (column - 1 >= 0)
                     {
@@ -96,5 +93,13 @@ public class Day7
 
         Console.WriteLine("Step two result:");
         Console.WriteLine("Not implemented yet.");
+    }
+
+    private static bool IsSplitter(char cell)
+    {
+        return cell == '^'
+               || cell == '\u02C4'   // modifier letter up arrow (˄)
+               || cell == '\uFF3E'   // fullwidth circumflex (^ in some encodings)
+               || cell == '\u2191';  // upward arrow (↑)
     }
 }
