@@ -24,7 +24,6 @@ public class Day9
             coordinates.Add((int.Parse(parts[0]), int.Parse(parts[1])));
         }
 
-        var coordinateSet = new HashSet<(int X, int Y)>(coordinates);
         var maxArea = 0L;
 
         for (var firstIndex = 0; firstIndex < coordinates.Count; firstIndex++)
@@ -35,20 +34,10 @@ public class Day9
             {
                 var second = coordinates[secondIndex];
 
-                if (first.X == second.X || first.Y == second.Y)
-                {
-                    continue;
-                }
+                var width = Math.Abs((long)(first.X - second.X)) + 1;
+                var height = Math.Abs((long)(first.Y - second.Y)) + 1;
 
-                var third = (first.X, second.Y);
-                var fourth = (second.X, first.Y);
-
-                if (!coordinateSet.Contains(third) || !coordinateSet.Contains(fourth))
-                {
-                    continue;
-                }
-
-                var area = Math.Abs((long)(first.X - second.X)) * Math.Abs(first.Y - second.Y);
+                var area = width * height;
                 maxArea = Math.Max(maxArea, area);
             }
         }
